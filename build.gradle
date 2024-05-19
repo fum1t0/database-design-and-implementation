@@ -1,0 +1,97 @@
+plugins {
+	id 'idea'
+	id 'jacoco'
+	id 'java'
+	id 'com.diffplug.spotless' version '6.25.0'
+	id 'com.star-zero.gradle.githook' version '1.2.1'
+	id 'io.freefair.lombok' version "8.6"
+}
+
+group = 'simpledb'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	sourceCompatibility = '21'
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testImplementation 'net.jqwik:jqwik:1.8.4'
+}
+
+tasks.named('test') {
+	systemProperties = [
+		'junit.platform.output.capture.stdout': true,
+		'junit.platform.output.capture.stderr': true
+	]
+
+	useJUnitPlatform() {
+		includeEngines 'jqwik', 'junit-jupiter'
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.compilerArgs += "--enable-preview"
+}
+
+tasks.withType(Test).configureEach {
+	jvmArgs += "--enable-preview"
+}
+
+tasks.withType(JavaExec).configureEach {
+	jvmArgs += "--enable-preview"
+}
+
+jacoco {
+	toolVersion = "0.8.12"
+	reportsDirectory = layout.buildDirectory.dir("reports/jacoco")
+}
+
+jacocoTestReport {
+	reports {
+		xml.required = true
+		csv.required = false
+		html.required = true
+	}
+
+	dependsOn test
+}
+
+test.finalizedBy jacocoTestReport
+
+spotless {
+	java {
+		targetExclude("build/generated/**/*.java")
+		googleJavaFormat("1.22.0")
+	}
+}
+
+githook {
+	hooks {
+		'pre-commit' {
+			shell =
+					"""set -e
+if echo "\$(git --no-pager diff --name-status --no-color --diff-filter=d --cached)" | grep -q "java"; then
+	changeFiles="\$(git --no-pager diff --name-status --no-color --diff-filter=d --cached | awk '{ if (\$1 ~ /R.*/ && \$2 ~ /\\.java/) { print \$3 } else if (\$1 != "D" && \$2 ~ /\\.java/) { print \$2 } }')"
+	./gradlew spotlessJavaApply
+	for sourceFilePath in ${"\$"}changeFiles
+	do
+		git add ${"\$"}sourceFilePath
+	done;
+fi
+"""
+		}
+	}
+}
