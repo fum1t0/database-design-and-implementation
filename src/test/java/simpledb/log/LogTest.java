@@ -15,15 +15,14 @@ import simpledb.server.SimpleDB;
 
 public class LogTest {
 
-  private static final String DB_FILENAME = "dbtest";
-
   LogManager logManager;
   PrintStream originalPrintStream;
   ByteArrayOutputStream logOutput;
 
   @BeforeEach
   void setup() {
-    logManager = new SimpleDB(DB_FILENAME, SimpleDB.BLOCK_SIZE, SimpleDB.BUFFER_SIZE).logManager();
+    String dbName = this.getClass().getSimpleName();
+    logManager = new SimpleDB(dbName, SimpleDB.BLOCK_SIZE, SimpleDB.BUFFER_SIZE).logManager();
 
     originalPrintStream = System.out;
     logOutput = new ByteArrayOutputStream();

@@ -11,19 +11,19 @@ import simpledb.server.SimpleDB;
 
 public class BufferTest {
 
-  private static final String DB_FILENAME = "dbtest";
-
   BufferManager bufferManager;
 
   @BeforeEach
   void setup() {
-    bufferManager = new SimpleDB(DB_FILENAME, SimpleDB.BLOCK_SIZE, 3).bufferManager();
+    String dbName = this.getClass().getSimpleName();
+    bufferManager = new SimpleDB(dbName, SimpleDB.BLOCK_SIZE, 3).bufferManager();
   }
 
   @Test
   void canFlushWhenOtherBuffersArePinned() {
     // setup
-    Buffer buffer = bufferManager.pin(new BlockId(DB_FILENAME, 1));
+    String fileName = "canFlushWhenOtherBuffersArePinned";
+    Buffer buffer = bufferManager.pin(new BlockId(fileName, 1));
     Page page = buffer.contents();
     int offset = 80;
     int n = page.getInt(offset);
@@ -34,6 +34,6 @@ public class BufferTest {
 
     // invoke and verify
     assertDoesNotThrow(
-        () -> IntStream.range(2, 5).forEach(i -> bufferManager.pin(new BlockId(DB_FILENAME, i))));
+        () -> IntStream.range(2, 5).forEach(i -> bufferManager.pin(new BlockId(fileName, i))));
   }
 }
