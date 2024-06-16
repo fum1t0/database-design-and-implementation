@@ -4,6 +4,136 @@
 
 両コンポーネントは、ディスクブロックの読み書きをメインメモリと効率的に管理する問題に直面している。データベースの内容は通常、メインメモリよりもはるかに大きいため、これらのコンポーネントはブロックをメモリ内外にシャトルする必要があるかもしれない。この章では、それぞれのメモリニーズと使用されるメモリ管理アルゴリズムを検討する。ログマネージャはログファイルへの順次アクセスのみをサポートし、シンプルかつ最適なメモリ管理アルゴリズムを持つ。一方、バッファマネージャはユーザーファイルへの任意のアクセスをサポートしなければならず、これははるかに難しい課題である。
 
+```mermaid
+classDiagram
+  direction TB
+
+  class SimpleDB {
+    +String BLOCK_SIZE$
+    +String BUFFER_SIZE$
+    -FileManager fileManager
+    -LogManager logManager
+    -BufferManager bufferManager
+    +SimpleDB(String, int, int)
+  }
+
+  class FileManager {
+    -File dbDirectory
+    -int blockSize
+    -boolean isNew
+    -Map openFiles
+    +FileManager(File, int)
+    +read(BlockId, Page)* void
+    +write(BlockId, Page)* void
+    +append(String)* BlockId
+    +length(String)* int
+    +getFile(String)* RandomAccessFile
+  }
+
+  class BlockId {
+    +String fileName
+    +int blockNumber
+  }
+
+  class Page {
+    +Charset CHARSET$
+    -ByteBuffer byteBuffer
+    +Page(int)
+    +Page(byte[])
+    +getInt(int)* int
+    +setInt(int)* void
+    +getBytes(int)* byte[]
+    +setBytes(int, byte[])* void
+    +getString(int)* String
+    +setString(int, String)* void
+    +neededBytes(byte[])* int
+    +maxLength(int)* void
+    ~contents()* ByteBuffer
+  }
+
+  class LogManager {
+    -FileManager fileManager
+    -String logFile
+    -Page logPage
+    -BlockId currentBlockId
+    -int latestLSN
+    -int lastSavedLSN
+    +LogManager(FileManager, String)
+    +flush(int)* void
+    +iterator()* Iterator
+    +append(byte[])* int
+    -appendNewBlock()* BlockId
+    -flush()* void
+  }
+
+  class Iterator {
+    <<interface>>
+    hasNext()* boolean
+    next()* T
+  }
+
+  class LogIterator {
+    -FileManager fileManager
+    -Page page
+    +LogIterator(FileManager, BlockId)
+    +hasNext()* boolean
+    +next()* byte[]
+    -moveToBlock(BlockId)* void
+  }
+
+  class Buffer {
+    -FileManager fileManager
+    -LogManager logManager
+    -Page page
+    +Buffer(FileManager, LogManager)
+    +setModified(int, int)* void
+    +isNotPinned()* boolean
+    +modifyingTransaction()* int
+    ~assignToBlock(BlockId)* void
+    ~flush()* void
+    ~pin()* void
+    ~unpin()* void
+  }
+
+  class BufferManager {
+    -long MAX_TIME_MILLISECONDS$
+    -Buffer[] bufferPool
+    -int numberOfAvailable
+    +BufferManager(FileManager, LogManager, int)
+    +available()* int
+    +flushAll(int)* void
+    +unpin(Buffer)* void
+    +pin(BlockId)* Buffer
+    -currentTimeMilliseconds()* long
+    -waitingTooLong(long)* boolean
+    -tryToPin(BlockId)* Optional< Buffer >
+    -findExistingBuffer(BlockId)* Optional< Buffer >
+    -chooseUnpinnedBuffer()* Optional< Buffer >
+  }
+
+  SimpleDB *-- FileManager
+  SimpleDB *-- LogManager
+  SimpleDB *-- BufferManager
+  FileManager ..> BlockId
+  FileManager ..> Page
+  LogManager *.. FileManager
+  LogManager *.. BlockId
+  LogManager *.. Page
+  LogManager ..> LogIterator
+  Iterator <|.. LogIterator
+  LogIterator *.. FileManager
+  LogIterator *.. Page
+  LogIterator ..> BlockId
+  Buffer *.. FileManager
+  Buffer *.. LogManager
+  Buffer *.. Page
+  Buffer ..> BlockId
+  BufferManager ..> FileManager
+  BufferManager ..> LogManager
+  BufferManager ..> BlockId
+  BufferManager *..> Buffer
+```
+
 ## 4.1 データベースメモリ管理の2つの原則
 
 データベースエンジンがディスク上の値を読み取る唯一の方法は、その値を含むブロックをメモリのページに読み込むことであり、ディスクの値を書き込む唯一の方法は、修正されたページをそのブロックに書き戻すことである。データベースエンジンは、データをディスクとメモリ間で移動する際に、2つの重要な原則に従う。ディスクアクセスを最小限に抑えることと、仮想メモリに依存しないことである。

@@ -2,6 +2,54 @@
 
 データベースエンジンは、ディスクやフラッシュドライブなどの永続的な記憶装置にデータを保持する。この章では、これらの装置の特性を調査し、 RAID などの技術によってその速度と信頼性を向上させる方法を検討する。また、オペレーティングシステムがこれらの装置と対話するために提供する2つのインターフェース（ブロックレベルのインターフェースとファイルレベルのインターフェース）を調べ、データベースシステムに最も適したこれらの 2 つのインターフェースの組み合わせを提案する。最後に、SimpleDB ファイルマネージャを詳細に検討し、その API と実装について学ぶ。
 
+```mermaid
+classDiagram
+  direction TB
+
+  class SimpleDB {
+    +BLOCK_SIZE$
+    -FileManager fileManager
+    +SimpleDB(String, int)
+  }
+
+  class FileManager {
+    -File dbDirectory
+    -int blockSize
+    -boolean isNew
+    -Map openFiles
+    +FileManager(File, int)
+    +read(BlockId, Page)* void
+    +write(BlockId, Page)* void
+    +append(String)* void
+    +length(String)* int
+    +getFile(String)* RandomAccessFile
+  }
+
+  class BlockId {
+    +String fileName
+    +int blockNumber
+  }
+
+  class Page {
+    +Charset CHARSET$
+    -ByteBuffer byteBuffer
+    +Page(int)
+    +Page(byte[])
+    +getInt(int)* int
+    +setInt(int)* void
+    +getBytes(int)* byte[]
+    +setBytes(int, byte[])* void
+    +getString(int)* String
+    +setString(int, String)* void
+    +maxLength(int)$* void
+    ~contents()* ByteBuffer
+  }
+
+  SimpleDB *-- FileManager
+  FileManager ..> BlockId
+  FileManager ..> Page
+```
+
 ## 目次
 
 - [3.1 永続的データストレージ](#31-永続的データストレージ)
