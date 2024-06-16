@@ -11,12 +11,12 @@ public class Page {
 
   // A constructor for creating data buffers
   public Page(int blockSize) {
-    byteBuffer = ByteBuffer.allocateDirect(blockSize);
+    this.byteBuffer = ByteBuffer.allocateDirect(blockSize);
   }
 
   // A constructor for creating log pages
   public Page(byte[] bytes) {
-    byteBuffer = ByteBuffer.wrap(bytes);
+    this.byteBuffer = ByteBuffer.wrap(bytes);
   }
 
   public int getInt(int offset) {
@@ -39,6 +39,10 @@ public class Page {
     byteBuffer.position(offset);
     byteBuffer.putInt(bytes.length);
     byteBuffer.put(bytes);
+  }
+
+  public int neededBytes(byte[] bytes) {
+    return Integer.BYTES + bytes.length;
   }
 
   public String getString(int offset) {

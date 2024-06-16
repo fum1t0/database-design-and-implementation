@@ -19,10 +19,10 @@ public class FileManager {
   public FileManager(File dbDirectory, int blockSize) {
     this.dbDirectory = dbDirectory;
     this.blockSize = blockSize;
-    isNew = !dbDirectory.exists();
+    this.isNew = !dbDirectory.exists();
 
     // create the directory if the database is new
-    if (isNew) {
+    if (this.isNew) {
       dbDirectory.mkdirs();
     }
 
@@ -36,7 +36,7 @@ public class FileManager {
 
   public synchronized void read(BlockId blockId, Page page) {
     try {
-      RandomAccessFile file = getFile(blockId.filename());
+      RandomAccessFile file = getFile(blockId.fileName());
       file.seek(blockId.blockNumber() * blockSize);
       file.getChannel().read(page.contents());
     } catch (IOException _) {
@@ -46,7 +46,7 @@ public class FileManager {
 
   public synchronized void write(BlockId blockId, Page page) {
     try {
-      RandomAccessFile file = getFile(blockId.filename());
+      RandomAccessFile file = getFile(blockId.fileName());
       file.seek(blockId.blockNumber() * blockSize);
       file.getChannel().write(page.contents());
     } catch (IOException _) {
@@ -54,17 +54,18 @@ public class FileManager {
     }
   }
 
-  public synchronized void append(String filename) {
+  public synchronized BlockId append(String filename) {
     int newBlockNumber = length(filename);
     BlockId blockId = new BlockId(filename, newBlockNumber);
     byte[] bytes = new byte[blockSize];
     try {
-      RandomAccessFile file = getFile(blockId.filename());
+      RandomAccessFile file = getFile(blockId.fileName());
       file.seek(blockId.blockNumber() * blockSize);
       file.write(bytes);
     } catch (IOException _) {
       throw new RuntimeException(STR."cannot append block \{blockId}");
     }
+    return blockId;
   }
 
   public int length(String filename) {

@@ -2,27 +2,25 @@ package simpledb.file;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.io.File;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import simpledb.server.SimpleDB;
 
 public class FileTest {
 
-  private static final String DB_FILENAME = "dbtest";
+  FileManager fileManager;
 
-  @AfterEach
-  void teardown() {
-    new File(DB_FILENAME).delete();
+  @BeforeEach
+  void setup() {
+    String dbName = this.getClass().getSimpleName();
+    fileManager = new SimpleDB(dbName, SimpleDB.BLOCK_SIZE, SimpleDB.BUFFER_SIZE).fileManager();
   }
 
   @Test
   void canSaveValuesToFile() {
     // setup
-    FileManager fileManager =
-        new SimpleDB(DB_FILENAME, SimpleDB.BLOCK_SIZE, SimpleDB.BUFFER_SIZE).fileManager();
-
-    BlockId blockId = new BlockId("testfile", 2);
+    String fileName = "canSaveValuesToFile";
+    BlockId blockId = new BlockId(fileName, 2);
     Page pageForWrite = new Page(fileManager.blockSize());
     int stringPosition = 88;
     String expectedString = "abcdefghijklm";
